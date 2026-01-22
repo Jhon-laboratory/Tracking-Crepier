@@ -1,8 +1,8 @@
 <?php
 header('Content-Type: application/json');
-ini_set('display_errors', 0);
-ini_set('display_startup_errors', 0);
-error_reporting(E_ALL);
+ini_set('display_errors', 1); // Cambiar a 1 para ver errores
+ini_set('display_startup_errors', 1); // Cambiar a 1
+error_reporting(E_ALL); // Reportar todos los errores
 
 // Validar que se proporcionó un valor para buscar
 if(!isset($_GET['valor']) || empty($_GET['valor'])){
@@ -26,7 +26,7 @@ $ordenParaInfor = null;
 $guiaParaServientrega = null;
 $encontradoEnAzure = false;
 
-// Conexión a SQL Server usando sqlsrv
+// Conectar a SQL Server
 function connectSQLServer() {
     global $host, $dbname, $username, $password;
     
@@ -38,7 +38,8 @@ function connectSQLServer() {
             "CharacterSet" => "UTF-8",
             "ReturnDatesAsStrings" => true,
             "MultipleActiveResultSets" => false,
-            "TrustServerCertificate" => true // Para Azure
+            "TrustServerCertificate" => true,
+            "Encrypt" => true // Importante para Azure
         );
         
         $conn = sqlsrv_connect($host, $connectionInfo);
@@ -57,6 +58,15 @@ function connectSQLServer() {
 
 // Consultar datos en Azure SQL Server
 $conexion = connectSQLServer();
+
+// Array para almacenar todos los resultados
+$resultadosCompletos = [
+    'datos_azure' => null,
+    'infor' => null,
+    'servientrega' => null,
+    'encontrado_en_azure' => false
+];
+
 if ($conexion['success']) {
     $conn = $conexion['conn'];
     
@@ -68,21 +78,31 @@ if ($conexion['success']) {
     
     if ($stmt === false) {
         $errors = sqlsrv_errors();
-        $datosAzure = ["error" => "Error en consulta: " . ($errors[0]['message'] ?? 'Error desconocido')];
+        $resultadosCompletos['datos_azure'] = ["error" => "Error en consulta: " . ($errors[0]['message'] ?? 'Error desconocido')];
     } else {
         $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
         
         if($row){
             $encontradoEnAzure = true;
+            $resultadosCompletos['encontrado_en_azure'] = true;
             $datosAzure = $row;
             
+            // Limpiar datos (convierte fechas a string si es necesario)
+            foreach ($datosAzure as $key => $value) {
+                if ($value instanceof DateTime) {
+                    $datosAzure[$key] = $value->format('Y-m-d H:i:s');
+                }
+            }
+            
             // Determinar qué valor tenemos y qué necesitamos
-            $guia = $row['guia'];
-            $ordenInfor = $row['orden_infor'];
+            $guia = $row['guia'] ?? '';
+            $ordenInfor = $row['orden_infor'] ?? '';
             
             // Si encontramos el registro, usar los valores de la base de datos
             $ordenParaInfor = $ordenInfor;
             $guiaParaServientrega = $guia;
+            
+            $resultadosCompletos['datos_azure'] = $datosAzure;
         } else {
             // No encontrado en Azure - intentaremos consultar Infor directamente
             $ordenParaInfor = $valor; // Usar el valor ingresado como posible orden
@@ -95,16 +115,8 @@ if ($conexion['success']) {
 } else {
     // Error de conexión a Azure, pero aún podemos intentar con Infor
     $ordenParaInfor = $valor; // Usar el valor ingresado como posible orden
-    $datosAzure = ["error" => $conexion['error']];
+    $resultadosCompletos['datos_azure'] = ["error" => $conexion['error']];
 }
-
-// Array para almacenar todos los resultados
-$resultadosCompletos = [
-    'datos_azure' => $datosAzure,
-    'infor' => null,
-    'servientrega' => null,
-    'encontrado_en_azure' => $encontradoEnAzure
-];
 
 // ---------- FUNCIÓN PARA RESTAR 4 HORAS ----------
 function restarHoras($fechaStr, $horas = 4) {
@@ -506,7 +518,7 @@ function asignarFechasAEstados($datosInfor, $datosServientrega) {
 // ---------- LÓGICA PRINCIPAL DE CONSULTAS ----------
 
 // FLUJO 1: Si encontramos en Azure
-if ($encontradoEnAzure && $datosAzure) {
+if ($resultadosCompletos['encontrado_en_azure'] && $resultadosCompletos['datos_azure'] && !isset($resultadosCompletos['datos_azure']['error'])) {
     // Consultar Infor si tenemos orden
     if (!empty($ordenParaInfor)) {
         $resultadosCompletos['infor'] = consultarInfor($ordenParaInfor);
@@ -539,7 +551,7 @@ if (isset($resultadosCompletos['infor']['success']) && $resultadosCompletos['inf
 $encontradoEnAlgunLado = false;
 
 // Verificar si hay datos en Azure
-if ($datosAzure && !isset($datosAzure['error'])) {
+if ($resultadosCompletos['datos_azure'] && !isset($resultadosCompletos['datos_azure']['error'])) {
     $encontradoEnAlgunLado = true;
 }
 
@@ -559,5 +571,5 @@ if (!$encontradoEnAlgunLado) {
 }
 
 // Devolver todos los resultados
-echo json_encode($resultadosCompletos, JSON_UNESCAPED_UNICODE);
+echo json_encode($resultadosCompletos, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 ?>
