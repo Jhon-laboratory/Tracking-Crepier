@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento de Pedidos</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f7f9;
+      color: #333;
+    }
+    
+    .overall-progress-section {
+      max-width: 1200px;
+      margin: 20px auto 30px;
+      padding: 20px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    
+    .header-top {
+  display: flex;
+  justify-content: space-between; /* Distribuye los elementos con espacio entre ellos */
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 20px;
+}
+    
+    .logo {
+  height: 60px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+    
+    .search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end; /* Alinea el contenido a la derecha */
+  flex: 0 1 auto; /* Permite que se ajuste al contenido */
+  min-width: 300px;
+  margin: 0; /* Elimina el margen automático que lo centraba */
+}
+.header-element {
+  flex: 0 1 auto; /* Se ajusta al contenido */
+}
+    
+    .search-bar input {
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      width: 100%;
+      font-size: 16px;
+      flex: 1;
+    }
+    
+    .search-bar button {
+      padding: 12px 20px;
+      background-color: #09a811;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s;
+      white-space: nowrap;
+    }
+    
+    .search-bar button:hover {
+      background-color: #ce8805;
+    }
+    
+    .search-bar button:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+    
+    .search-bar button.blocked {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .search-bar button.blocked::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      background-color: #3498db;
+      animation: countdown 10s linear forwards;
+    }
+    
+    @keyframes countdown {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
+    
+    .countdown-text {
+      margin-left: 10px;
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+    
+    h2 {
+      text-align: center;
+      margin: 40px 0 30px;
+      font-size: 2.5rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      position: relative;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      animation: subtleGlow 3s ease-in-out infinite alternate;
+      background: linear-gradient(135deg, #1a970a, #2c3e50);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    @keyframes subtleGlow {
+      0% {
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        transform: translateY(0);
+      }
+      100% {
+        text-shadow: 2px 2px 8px rgba(26, 151, 10, 0.3);
+        transform: translateY(-2px);
+      }
+    }
+
+    h2::after {
+      content: '';
+      display: block;
+      width: 100px;
+      height: 4px;
+      background: linear-gradient(90deg, #1a970a, #09a811);
+      margin: 15px auto 0;
+      border-radius: 2px;
+      animation: lineGrow 1.5s ease-out;
+    }
+
+    @keyframes lineGrow {
+      from {
+        width: 0;
+        opacity: 0;
+      }
+      to {
+        width: 100px;
+        opacity: 1;
+      }
+    }
+    
+    .horizontal-timeline-container {
+      position: relative;
+      margin-bottom: 50px;
+      padding: 30px 20px;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      margin-top: 20px;
+    }
+
+    .horizontal-timeline {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      z-index: 2;
+    }
+
+    .timeline-connector {
+      position: absolute;
+      top: 60px;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background-color: #e0e0e0;
+      z-index: 1;
+    }
+
+    .connector-progress {
+      height: 100%;
+      background-color: #1a970a;
+      width: 0%;
+      transition: width 1s ease;
+      border-radius: 2px;
+    }
+
+    .ht-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+      transition: transform 0.3s ease;
+    }
+
+    .ht-item:hover {
+      transform: translateY(-5px);
+    }
+
+    .ht-icon-wrapper {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: #fff;
+      border: 4px solid #e0e0e0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 10px;
+      transition: all 0.5s ease;
+      position: relative;
+    }
+
+    .progress-ring {
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 60px;
+      height: 60px;
+      transform: rotate(-90deg);
+    }
+
+    .progress-circle-bg {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 4;
+    }
+
+    .progress-circle-value {
+      fill: none;
+      stroke: #1a970a;
+      stroke-width: 4;
+      stroke-dasharray: 175.9;
+      stroke-dashoffset: 175.9;
+      transition: stroke-dashoffset 1s ease;
+    }
+
+    .ht-icon {
+      font-size: 24px;
+      color: #95a5a6;
+    }
+
+    .ht-text {
+      font-weight: 600;
+      color: #95a5a6;
+      text-align: center;
+      transition: all 0.3s ease;
+      margin-top: 5px;
+    }
+
+    .ht-tooltip {
+      position: absolute;
+      bottom: -30px;
+      background-color: #333;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    .ht-tooltip::after {
+      content: '';
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 5px solid #333;
+    }
+
+    .ht-item:hover .ht-tooltip {
+      opacity: 1;
+      visibility: visible;
+      bottom: -25px;
+    }
+
+    .ht-item.active .ht-icon-wrapper {
+      border-color: rgb(26, 151, 10);
+      background-color: #e3fee1;
+      transform: scale(1.1);
+      box-shadow: 0 5px 15px rgba(33, 185, 19, 0.445);
+    }
+
+    .ht-item.active .ht-icon {
+      color: #1a970a;
+      animation: pulse 1.5s infinite;
+    }
+
+    .ht-item.active .ht-text {
+      color: #1a970a;
+      font-weight: 700;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    .order-status-card {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      margin-bottom: 30px;
+    }
+    
+    .card-header {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .status-text {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .status-text.consultando {
+      color: #3498db;
+    }
+    
+    .status-text.registrado {
+      color: #2ecc71;
+    }
+    
+    .status-text.entregado {
+      color: #27ae60;
+    }
+    
+    .status-text.no-registrado {
+      color: #e74c3c;
+    }
+    
+    .status-text.esperando {
+      color: #f39c12;
+    }
+    
+    .card-content {
+      display: flex;
+      padding: 20px;
+      gap: 30px;
+    }
+    
+    .info-column {
+      flex: 1;
+    }
+    
+    .monitoring-column {
+      flex: 1;
+    }
+    
+    .order-details {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .detail-group {
+      display: flex;
+      border-bottom: 1px dashed #eee;
+      padding-bottom: 10px;
+    }
+    
+    .detail-label {
+      font-weight: 600;
+      width: 180px;
+      margin: 0;
+      color: #7f8c8d;
+    }
+    
+    .detail-value {
+      margin: 0;
+      flex: 1;
+      color: #2c3e50;
+    }
+    
+    .order-tracking {
+  border-left: 3px solid #eee;
+  padding-left: 25px;
+  position: relative;
+}
+    .order-tracking::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 0;
+      bottom: 0;
+      width: 9px;
+      background: linear-gradient(to bottom, #8fe084, #4de655, #2cd627, #1dda05);
+      border-radius: 5px;
+      opacity: 0.8;
+      animation: linePulse 3s ease-in-out infinite;
+    }
+
+    @keyframes linePulse {
+      0%, 100% {
+        opacity: 0.7;
+        transform: scaleY(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scaleY(1.05);
+      }
+    }
+    
+    .tracking-label {
+      font-weight: 700;
+      color: #7f8c8d;
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+    
+    .tracking-timeline {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      position: relative;
+    }
+
+    .tracking-timeline::before {
+      content: '';
+      position: absolute;
+      left: -25px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(26, 151, 10, 0.1);
+      border-radius: 1px;
+    }
+    
+    .timeline-item {
+      position: relative;
+      padding-bottom: 25px;
+    }
+
+    .timeline-item::after {
+      content: '';
+      position: absolute;
+      left: -23px;
+      top: 19px;
+      bottom: -25px;
+      width: 4px;
+      background: linear-gradient(to bottom, #1a970a, #09a811);
+      opacity: 0.3;
+      border-radius: 2px;
+      transition: all 0.5s ease;
+    }
+
+    .timeline-item:last-child::after {
+      display: none;
+    }
+
+    .timeline-item.completed::after {
+      opacity: 1;
+      background: linear-gradient(to bottom, #1a970a, #09a811);
+      animation: lineFlow 2s ease-in-out infinite;
+    }
+
+    @keyframes lineFlow {
+      0%, 100% {
+        background: linear-gradient(to bottom, #1a970a, #09a811);
+      }
+      50% {
+        background: linear-gradient(to bottom, #09a811, #1a970a);
+      }
+    }
+    
+    .timeline-dot {
+      position: absolute;
+      left: -29px;
+      top: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      transition: all 0.5s ease;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 2;
+    }
+
+    .timeline-item.completed .timeline-dot {
+      background: linear-gradient(135deg, #1a970a, #09a811);
+      animation: dotPulse 2s infinite;
+      box-shadow: 0 0 15px rgba(26, 151, 10, 0.5);
+    }
+
+    @keyframes dotPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 15px rgba(26, 151, 10, 0.5);
+      }
+      50% {
+        transform: scale(1.2);
+        box-shadow: 0 0 20px rgba(26, 151, 10, 0.8);
+      }
+    }
+
+    .timeline-item:hover .timeline-dot {
+      transform: scale(1.3);
+      transition: transform 0.3s ease;
+    }
+    
+    .timeline-content {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .timeline-status {
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #2c3e50;
+    }
+    
+    .timeline-date {
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+    
+    .guia-image-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .guia-image-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 15px;
+    }
+    
+    .guia-image-container {
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 300px;
+    }
+    
+    .guia-image-placeholder {
+      text-align: center;
+      color: #95a5a6;
+    }
+    
+    .guia-image {
+      max-width: 100%;
+      max-height: 500px;
+      display: none;
+    }
+    
+    .error-message {
+      background-color: #ffecec;
+      color: #e74c3c;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #e74c3c;
+    }
+    
+    .status-text.listo-retiro {
+      background-color: #17a2b8;
+      color: white;
+    }
+    
+    #ht-entregado-text {
+      transition: all 0.3s ease;
+    }
+    
+    @media (max-width: 900px) {
+      .card-content {
+        flex-direction: column;
+      }
+      
+      .order-tracking {
+        border-left: none;
+        border-top: 3px solid #eee;
+        padding-left: 0;
+        padding-top: 20px;
+        margin-top: 20px;
+      }
+      
+      .timeline-item {
+        padding-left: 20px;
+      }
+      
+      .timeline-dot {
+        left: 0;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .header-top {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 20px;
+      }
+      
+      .search-bar {
+        width: 100%;
+        max-width: 100%;
+        order: 3;
+      }
+      
+      .logo {
+        margin: 0 10px;
+      }
+      
+      .horizontal-timeline {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 20px;
+      }
+      
+      .timeline-connector {
+        display: none;
+      }
+      
+      .ht-item {
+        flex: 0 0 calc(50% - 20px);
+        margin-bottom: 20px;
+      }
+      
+      .header-top {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .search-bar {
+        width: 100%;
+      }
+      
+      .search-bar input {
+        width: 100%;
+      }
+      
+      .horizontal-timeline::before {
+        display: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .ht-item {
+        flex: 0 0 100%;
+      }
+      
+      h2 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Sección Progreso General -->
+  <div class="overall-progress-section" aria-label="Progreso general del pedido">
+    <div class="header-top">
+      <img
+        src="https://tse2.mm.bing.net/th/id/OIP.Ckl7mNDKlUqm6056On3FIwAAAA?w=380&h=125&rs=1&pid=ImgDetMain&o=7&rm=3"
+        class="logo"
+        alt="Logo Servientrega"
+        loading="lazy"
+      />
+      <img
+        src="https://crepier.com.ec/media/logo/default/LOGO-WEB.png"
+        class="logo"
+        alt="Logo Servientrega"
+        loading="lazy"
+      />
+
+      <div class="search-bar">
+        <input
+          type="text"
+          id="valor"
+          placeholder="🔍 Ingrese número de guía u orden..."
+          required
+        />
+        <button id="btnBuscar">Buscar</button>
+        <span id="countdownText" class="countdown-text"></span>
+      </div>
+    </div>
+
+    <!-- Resultados -->
+    <div id="resultado"></div>
+
+    <h2>Progreso General</h2>
+    <div class="horizontal-timeline-container">
+      <div class="horizontal-timeline" id="timeline">
+        <div class="ht-item" id="ht-esperando">
+          <div class="ht-icon-wrapper">
+            <i class="fas fa-box-open ht-icon"></i>
+            <div class="progress-ring">
+              <svg class="progress-circle" width="60" height="60">
+                <circle class="progress-circle-bg" cx="30" cy="30" r="28"/>
+                <circle class="progress-circle-value" cx="30" cy="30" r="28"/>
+              </svg>
+            </div>
+          </div>
+          <span class="ht-text">Esperando Recolección</span>
+          <div class="ht-tooltip">El pedido está esperando ser recogido</div>
+        </div>
+        <div class="ht-item" id="ht-recogido">
+          <div class="ht-icon-wrapper">
+            <i class="fas fa-boxes ht-icon"></i>
+            <div class="progress-ring">
+              <svg class="progress-circle" width="60" height="60">
+                <circle class="progress-circle-bg" cx="30" cy="30" r="28"/>
+                <circle class="progress-circle-value" cx="30" cy="30" r="28"/>
+              </svg>
+            </div>
+          </div>
+          <span class="ht-text">Recogido en Origen</span>
+          <div class="ht-tooltip">El pedido ha sido recogido</div>
+        </div>
+        <div class="ht-item" id="ht-ruta">
+          <div class="ht-icon-wrapper">
+            <i class="fas fa-truck ht-icon"></i>
+            <div class="progress-ring">
+              <svg class="progress-circle" width="60" height="60">
+                <circle class="progress-circle-bg" cx="30" cy="30" r="28"/>
+                <circle class="progress-circle-value" cx="30" cy="30" r="28"/>
+              </svg>
+            </div>
+          </div>
+          <span class="ht-text">En Ruta de Entrega</span>
+          <div class="ht-tooltip">El pedido está en camino</div>
+        </div>
+        <div class="ht-item" id="ht-entregado">
+          <div class="ht-icon-wrapper">
+            <i class="fas fa-check ht-icon"></i>
+            <div class="progress-ring">
+              <svg class="progress-circle" width="60" height="60">
+                <circle class="progress-circle-bg" cx="30" cy="30" r="28"/>
+                <circle class="progress-circle-value" cx="30" cy="30" r="28"/>
+              </svg>
+            </div>
+          </div>
+          <span class="ht-text" id="ht-entregado-text">Entregado</span>
+          <div class="ht-tooltip">¡Pedido entregado!</div>
+        </div>
+      </div>
+      <div class="timeline-connector">
+        <div class="connector-progress"></div>
+      </div>
+    </div>
+
+    <!-- Tarjeta con detalles del pedido -->
+    <div class="order-status-card">
+      <div class="card-header">
+        <h1 class="status-text esperando" id="estadoGeneral">
+          <i class="fas fa-clock"></i>ESPERANDO ORDEN
+        </h1>
+      </div>
+
+      <div class="card-content">
+        <!-- Columna de información -->
+        <div class="info-column">
+          <!-- Detalles del pedido -->
+          <div class="order-details">
+            <div class="detail-group">
+              <p class="detail-label">Fecha de Pedido:</p>
+              <p class="detail-value" id="inforAddDate">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Nombre Cliente:</p>
+              <p class="detail-value" id="inforCompany">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Número de Pedido:</p>
+              <p class="detail-value" id="ordenInfor">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Guía Servientrega:</p>
+              <p class="detail-value" id="guiaServientrega">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Origen:</p>
+              <p class="detail-value" id="dirRemitente">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Dirección Receptor:</p>
+              <p class="detail-value" id="dirRecept">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Placa:</p>
+              <p class="detail-value" id="placaVehiculo">-</p>
+            </div>
+            <div class="detail-group">
+              <p class="detail-label">Estado:</p>
+              <p class="detail-value" id="estadoEnvio">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna de monitoreo -->
+        <div class="monitoring-column">
+          <div class="order-tracking">
+            <p class="tracking-label">Monitoreo</p>
+            <ul class="tracking-timeline">
+              <li class="timeline-item" id="item-pedido-registrado">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">Pedido Registrado</span>
+                  <span class="timeline-date" id="fechaPedidoRegistrado">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="item-recibido-almacen">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">Recibido en almacén</span>
+                  <span class="timeline-date" id="fechaRecibidoAlmacen">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="item-preparacion">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">En Preparación</span>
+                  <span class="timeline-date" id="fechaPreparacion">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="item-despacho">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">Listo Para Despacho</span>
+                  <span class="timeline-date" id="fechaDespacho">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="item-esperando-recoleccion">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">Esperando Recolección</span>
+                  <span class="timeline-date" id="fechaEsperandoRecoleccion">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="item-recogido-origen">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">Recogido en Origen</span>
+                  <span class="timeline-date" id="fechaRecogidoOrigen">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="item-ruta-entrega">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">En Ruta de Entrega</span>
+                  <span class="timeline-date" id="fechaRutaEntrega">-</span>
+                </div>
+              </li>
+              <li class="timeline-item" id="entrega-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                  <span class="timeline-status">Entregado</span>
+                  <span class="timeline-date" id="fechaEntregaTimeline">-</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nueva sección para imagen de la guía -->
+  <div class="guia-image-section">
+    <div class="guia-image-title">Imagen de la Guía</div>
+    <div class="guia-image-container">
+      <div class="guia-image-placeholder" id="imagePlaceholder">
+        <i class="fas fa-image" style="font-size: 48px; margin-bottom: 10px;"></i>
+        <p>La imagen de la guía se mostrará aquí después de la búsqueda</p>
+      </div>
+      <img id="guiaImage" class="guia-image" alt="Imagen de la guía" />
+    </div>
+  </div>
+
+  <script>
+    // Mapeo de estados numéricos a textos (Infor)
+    const statusMap = {
+      // Recibido en almacén
+      "10": "Recibido en almacén",
+      "17": "Recibido en almacén",
+      "98": "Recibido en almacén",
+      "99": "Recibido en almacén",
+      "94": "Recibido en almacén",
+      "8": "Recibido en almacén",
+      "2": "Recibido en almacén",
+      "4": "Recibido en almacén",
+      "96": "Recibido en almacén",
+      "97": "Recibido en almacén",
+      "6": "Recibido en almacén",
+      "0": "Recibido en almacén",
+      "82": "Recibido en almacén",
+      "9": "Recibido en almacén",
+      "-2": "Recibido en almacén",
+      "14": "Recibido en almacén",
+      "15": "Recibido en almacén",
+      "16": "Recibido en almacén",
+      "11": "Recibido en almacén",
+      "22": "Recibido en almacén",
+      "25": "Recibido en almacén",
+      "27": "Recibido en almacén",
+      "12": "Recibido en almacén",
+      "29": "Recibido en almacén",
+      "13": "Recibido en almacén",
+      
+      // En preparación
+      "61": "En preparación",
+      "51": "En preparación",
+      "88": "En preparación",
+      "52": "En preparación",
+      "53": "En preparación",
+      "57": "En preparación",
+      
+      // Listo para despacho
+      "78": "Listo para despacho",
+      "68": "Listo para despacho",
+      "92": "Listo para despacho",
+      "55": "Listo para despacho",
+      "95": "Listo para despacho"
+    };
+
+    // Mapeo de movimientos de Servientrega a estados de la línea de tiempo
+    const movimientoMap = {
+      "Generado Cliente Corporativo": "Esperando Recolección",
+      "Ingresando de Recoleccion": "Esperando Recolección",
+      "Ingreso de recoleccion": "Recogido en Origen",
+      "En Distribucion a Cliente": "En Ruta de Entrega",
+      "Reportado Entregado en App": "Entregado",
+      "Certificacion de Prueba de Entrega": "Entregado",
+      "Entrega Digitalizada": "Entregado"
+    };
+
+    // Obtener la IP del usuario (usando un servicio externo)
+    async function obtenerIPUsuario() {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        return data.ip;
+      } catch (error) {
+        console.error("Error al obtener IP:", error);
+        return 'unknown-' + Math.random().toString(36).substring(2, 15);
+      }
+    }
+
+    // Función para verificar si el botón debe estar bloqueado
+    async function verificarEstadoBloqueo() {
+      const ip = await obtenerIPUsuario();
+      const bloqueoKey = `bloqueo_busqueda_${ip}`;
+      const tiempoBloqueo = localStorage.getItem(bloqueoKey);
+      
+      if (tiempoBloqueo) {
+        const tiempoRestante = parseInt(tiempoBloqueo) - Date.now();
+        
+        if (tiempoRestante > 0) {
+          bloquearBoton(tiempoRestante);
+          return true;
+        } else {
+          localStorage.removeItem(bloqueoKey);
+        }
+      }
+      
+      return false;
+    }
+
+    // Función para bloquear el botón
+    function bloquearBoton(tiempoMs) {
+      const boton = document.getElementById("btnBuscar");
+      const countdownText = document.getElementById("countdownText");
+      
+      boton.disabled = true;
+      boton.classList.add("blocked");
+      
+      const segundos = Math.ceil(tiempoMs / 1000);
+      countdownText.textContent = `Espere ${segundos} segundos`;
+      
+      const intervalo = setInterval(() => {
+        tiempoMs -= 1000;
+        const segundosRestantes = Math.ceil(tiempoMs / 1000);
+        
+        if (segundosRestantes <= 0) {
+          clearInterval(intervalo);
+          desbloquearBoton();
+        } else {
+          countdownText.textContent = `Espere ${segundosRestantes} segundos`;
+        }
+      }, 1000);
+    }
+
+    // Función para desbloquear el botón
+    function desbloquearBoton() {
+      const boton = document.getElementById("btnBuscar");
+      const countdownText = document.getElementById("countdownText");
+      
+      boton.disabled = false;
+      boton.classList.remove("blocked");
+      countdownText.textContent = "";
+    }
+
+    // Función para establecer el bloqueo
+    async function establecerBloqueo() {
+      const ip = await obtenerIPUsuario();
+      const bloqueoKey = `bloqueo_busqueda_${ip}`;
+      const tiempoDesbloqueo = Date.now() + 10000; // 10 segundos
+      
+      localStorage.setItem(bloqueoKey, tiempoDesbloqueo);
+      bloquearBoton(10000);
+    }
+
+    // Verificar estado al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+      verificarEstadoBloqueo();
+    });
+
+    document.getElementById("btnBuscar").addEventListener("click", async function (e) {
+      e.preventDefault();
+      
+      // Verificar si ya está bloqueado
+      if (await verificarEstadoBloqueo()) {
+        return;
+      }
+      
+      const valor = document.getElementById("valor").value.trim();
+
+      if (!valor) {
+        alert("⚠️ Ingresa un número de guía u orden");
+        return;
+      }
+
+      // Establecer bloqueo de 10 segundos
+      await establecerBloqueo();
+
+      try {
+        // Mostrar carga
+        const estadoElement = document.getElementById("estadoGeneral");
+        estadoElement.innerHTML = '<i class="fas fa-sync fa-spin"></i>CONSULTANDO...';
+        estadoElement.className = "status-text consultando";
+
+        // Limpiar resultados anteriores
+        document.getElementById("resultado").innerHTML = "";
+
+        // Ocultar imagen anterior si existe
+        document.getElementById("guiaImage").style.display = "none";
+        document.getElementById("imagePlaceholder").style.display = "block";
+
+        // Resetear campos
+        resetFields();
+
+        // Hacer la petición a la API unificada
+        const response = await fetch("consulta_unificada.php?valor=" + encodeURIComponent(valor), {
+          method: "GET"
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const dataCompleta = await response.json();
+
+        // Procesar respuesta completa
+        procesarRespuestaCompleta(dataCompleta);
+
+      } catch (err) {
+        console.error(err);
+        const errorMsg = document.createElement("div");
+        errorMsg.className = "error-message";
+        errorMsg.innerHTML = `<strong>Error:</strong> ${err.message}`;
+        document.getElementById("resultado").appendChild(errorMsg);
+
+        document.getElementById("estadoGeneral").innerHTML =
+          '<i class="fas fa-exclamation-triangle"></i>ERROR DE CONEXIÓN';
+        document.getElementById("estadoGeneral").className = "status-text no-registrado";
+      }
+    });
+
+    // Función para resetear campos
+    function resetFields() {
+      document.getElementById("ordenInfor").textContent = "-";
+      document.getElementById("guiaServientrega").textContent = "-";
+      document.getElementById("inforAddDate").textContent = "-";
+      document.getElementById("inforCompany").textContent = "-";
+      document.getElementById("dirRemitente").textContent = "-";
+      document.getElementById("dirRecept").textContent = "-";
+      document.getElementById("placaVehiculo").textContent = "-";
+      document.getElementById("estadoEnvio").textContent = "-";
+      
+      document.getElementById("fechaPedidoRegistrado").textContent = "-";
+      document.getElementById("fechaRecibidoAlmacen").textContent = "-";
+      document.getElementById("fechaPreparacion").textContent = "-";
+      document.getElementById("fechaDespacho").textContent = "-";
+      document.getElementById("fechaEsperandoRecoleccion").textContent = "-";
+      document.getElementById("fechaRecogidoOrigen").textContent = "-";
+      document.getElementById("fechaRutaEntrega").textContent = "-";
+      document.getElementById("fechaEntregaTimeline").textContent = "-";
+      
+      // Quitar la clase completed de todos los puntos
+      const timelineItems = document.querySelectorAll(".timeline-item");
+      timelineItems.forEach(item => {
+        item.classList.remove("completed");
+        const dot = item.querySelector(".timeline-dot");
+        if (dot) dot.classList.remove("completed");
+      });
+      
+      // Restablecer el texto de entrega a su valor por defecto
+      const entregaStatus = document.querySelector("#entrega-item .timeline-status");
+      if (entregaStatus) {
+        entregaStatus.textContent = "Entregado";
+      }
+      
+      // Resetear el progreso general
+      const htItems = document.querySelectorAll(".ht-item");
+      htItems.forEach(item => {
+        item.classList.remove("active");
+      });
+      document.querySelector('.connector-progress').style.width = '0%';
+      document.querySelectorAll('.progress-circle-value').forEach(circle => {
+        circle.style.strokeDashoffset = '175.9';
+      });
+    }
+
+    // Función principal para procesar la respuesta completa
+    function procesarRespuestaCompleta(dataCompleta) {
+      // Verificar errores generales
+      if (dataCompleta.error) {
+        mostrarError(dataCompleta.error);
+        return;
+      }
+
+      // Procesar datos de Azure
+      if (dataCompleta.datos_azure) {
+        procesarDatosAzure(dataCompleta.datos_azure);
+      }
+
+      // Procesar datos de Infor
+      if (dataCompleta.infor) {
+        if (dataCompleta.infor.error) {
+          console.error("Error en datos Infor:", dataCompleta.infor.error);
+        } else {
+          procesarDatosInfor(dataCompleta.infor);
+        }
+      }
+
+      // Procesar datos de Servientrega
+      if (dataCompleta.servientrega) {
+        if (dataCompleta.servientrega.error) {
+          console.error("Error en datos Servientrega:", dataCompleta.servientrega.error);
+          // Mostrar error específico de Servientrega pero continuar con otros datos
+          if (dataCompleta.servientrega.no_existe) {
+            mostrarErrorServientrega(dataCompleta.servientrega);
+          }
+        } else {
+          procesarDatosServientrega(dataCompleta.servientrega);
+        }
+      }
+
+      // Actualizar estado general final
+      actualizarEstadoGeneral();
+    }
+
+    // Función para procesar datos de Azure
+    function procesarDatosAzure(datosAzure) {
+      document.getElementById("ordenInfor").textContent = datosAzure.orden_infor || "-";
+      document.getElementById("guiaServientrega").textContent = datosAzure.guia || "-";
+    }
+
+    // Función para procesar datos de Infor
+    function procesarDatosInfor(datosInfor) {
+      document.getElementById("inforAddDate").textContent = datosInfor.adddate || "-";
+      document.getElementById("inforCompany").textContent = datosInfor.ccompany || "-";
+      
+      // Actualizar la fecha en la línea de tiempo
+      const fechaPedidoElement = document.getElementById("fechaPedidoRegistrado");
+      fechaPedidoElement.textContent = datosInfor.adddate || "-";
+      
+      // Pintar el punto de naranjo si tenemos una fecha válida
+      if (datosInfor.adddate && datosInfor.adddate !== "-") {
+        activarPunto("item-pedido-registrado", datosInfor.adddate, "fechaPedidoRegistrado");
+      }
+      
+      // Procesar el estado para actualizar la línea de tiempo
+      if (datosInfor.status) {
+        procesarEstadoInfor(datosInfor);
+      }
+      
+      // Cambiar textos según el tipo (112 o 152)
+      if (datosInfor.type === "152") {
+        const entregaStatus = document.querySelector("#entrega-item .timeline-status");
+        if (entregaStatus) {
+          entregaStatus.textContent = "Listo para Retiro en Tienda";
+        }
+        
+        const entregadoText = document.getElementById("ht-entregado-text");
+        if (entregadoText) {
+          entregadoText.textContent = "Listo para retiro en tienda";
+        }
+      }
+    }
+
+    // Función para procesar datos de Servientrega
+    function procesarDatosServientrega(datosServientrega) {
+      document.getElementById("dirRemitente").textContent = 
+        datosServientrega.direccion_remitente || "No disponible";
+      document.getElementById("estadoEnvio").textContent = datosServientrega.estado || "No disponible";
+      document.getElementById("dirRecept").textContent = 
+        datosServientrega.direccion_receptor || "No disponible";
+      document.getElementById("placaVehiculo").textContent = datosServientrega.placa || "No disponible";
+
+      // Procesar movimientos de Servientrega si están disponibles
+      if (datosServientrega.movimientos && datosServientrega.movimientos.length > 0) {
+        procesarMovimientosServientrega(datosServientrega.movimientos);
+      }
+
+      // Mostrar imagen de la guía si está disponible
+      if (datosServientrega.imagen_base64) {
+        const guiaImage = document.getElementById("guiaImage");
+        guiaImage.src = `data:image/png;base64,${datosServientrega.imagen_base64}`;
+        guiaImage.style.display = "block";
+        document.getElementById("imagePlaceholder").style.display = "none";
+      }
+
+      if (datosServientrega.fecha_entrega) {
+        document.getElementById("fechaEntregaTimeline").textContent = datosServientrega.fecha_entrega;
+      }
+    }
+
+    // Función para mostrar errores
+    function mostrarError(mensaje) {
+      const errorMsg = document.createElement("div");
+      errorMsg.className = "error-message";
+      errorMsg.innerHTML = `<strong>Error:</strong> ${mensaje}`;
+      document.getElementById("resultado").appendChild(errorMsg);
+
+      const estadoElement = document.getElementById("estadoGeneral");
+      estadoElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i>ERROR';
+      estadoElement.className = "status-text no-registrado";
+    }
+
+    function mostrarErrorServientrega(datosServientrega) {
+      const errorMsg = document.createElement("div");
+      errorMsg.className = "error-message";
+      
+      if (datosServientrega.no_existe) {
+        errorMsg.innerHTML = `<strong>Guía no encontrada:</strong> La guía ${datosServientrega.guia} no existe en el sistema de Servientrega`;
+      } else {
+        errorMsg.innerHTML = `<strong>Error Servientrega:</strong> ${datosServientrega.error}`;
+      }
+      
+      document.getElementById("resultado").appendChild(errorMsg);
+    }
+
+    // Función para procesar el estado de Infor y actualizar la línea de tiempo
+    function procesarEstadoInfor(dataInfor) {
+      const status = dataInfor.status.toString();
+      const estadoTexto = statusMap[status] || "Desconocido";
+      
+      if (estadoTexto === "Recibido en almacén") {
+        activarPunto("item-recibido-almacen", dataInfor.adddate || "-", "fechaRecibidoAlmacen");
+      } 
+      else if (estadoTexto === "En preparación") {
+        activarPunto("item-recibido-almacen", dataInfor.adddate || "-", "fechaRecibidoAlmacen");
+        activarPunto("item-preparacion", dataInfor.editdate || "-", "fechaPreparacion");
+      } 
+      else if (estadoTexto === "Listo para despacho") {
+        activarPunto("item-recibido-almacen", dataInfor.adddate || "-", "fechaRecibidoAlmacen");
+        activarPunto("item-preparacion", dataInfor.editdate || "-", "fechaPreparacion");
+        activarPunto("item-despacho", dataInfor.actualshipdate || "-", "fechaDespacho");
+      }
+    }
+
+    // Función para procesar los movimientos de Servientrega
+    function procesarMovimientosServientrega(movimientos) {
+      const fechasPorMovimiento = {};
+      
+      movimientos.forEach(movimiento => {
+        for (const [key, estado] of Object.entries(movimientoMap)) {
+          if (movimiento.NomMov && movimiento.NomMov.includes(key)) {
+            fechasPorMovimiento[estado] = movimiento.FecMov;
+            break;
+          }
+        }
+      });
+      
+      if (fechasPorMovimiento["Esperando Recolección"]) {
+        activarPunto("item-esperando-recoleccion", fechasPorMovimiento["Esperando Recolección"], "fechaEsperandoRecoleccion");
+      }
+      
+      if (fechasPorMovimiento["Recogido en Origen"]) {
+        activarPunto("item-recogido-origen", fechasPorMovimiento["Recogido en Origen"], "fechaRecogidoOrigen");
+      }
+      
+      if (fechasPorMovimiento["En Ruta de Entrega"]) {
+        activarPunto("item-ruta-entrega", fechasPorMovimiento["En Ruta de Entrega"], "fechaRutaEntrega");
+      }
+      
+      if (fechasPorMovimiento["Entregado"]) {
+        activarPunto("entrega-item", fechasPorMovimiento["Entregado"], "fechaEntregaTimeline");
+      }
+    }
+
+    // Función para activar un punto en la línea de tiempo
+    function activarPunto(itemId, fecha, fechaElementId) {
+      const item = document.getElementById(itemId);
+      if (item) {
+        item.classList.add("completed");
+        const dot = item.querySelector(".timeline-dot");
+        if (dot) dot.classList.add("completed");
+        
+        if (fechaElementId && fecha !== "-") {
+          document.getElementById(fechaElementId).textContent = fecha;
+        }
+        
+        actualizarProgresoGeneral();
+      }
+    }
+
+    // Función para actualizar el Progreso General basado en el Monitoreo
+    function actualizarProgresoGeneral() {
+      function updateConnectorProgress() {
+        const activeItems = document.querySelectorAll('.ht-item.active');
+        const totalItems = document.querySelectorAll('.ht-item').length;
+        const progress = (activeItems.length / totalItems) * 100;
+        
+        document.querySelector('.connector-progress').style.width = `${progress}%`;
+        
+        activeItems.forEach((item, index) => {
+          const circle = item.querySelector('.progress-circle-value');
+          if (circle) {
+            circle.style.strokeDashoffset = '0';
+          }
+        });
+      }
+
+      const htEsperando = document.getElementById("ht-esperando");
+      const htRecogido = document.getElementById("ht-recogido");
+      const htRuta = document.getElementById("ht-ruta");
+      const htEntregado = document.getElementById("ht-entregado");
+
+      // Resetear todos los items del progreso general
+      htEsperando.classList.remove("active");
+      htRecogido.classList.remove("active");
+      htRuta.classList.remove("active");
+      htEntregado.classList.remove("active");
+
+      // Verificar qué estados del monitoreo están completados
+      const pedidoRegistrado = document.getElementById("item-pedido-registrado").classList.contains("completed");
+      const recibidoAlmacen = document.getElementById("item-recibido-almacen").classList.contains("completed");
+      const enPreparacion = document.getElementById("item-preparacion").classList.contains("completed");
+      const listoDespacho = document.getElementById("item-despacho").classList.contains("completed");
+      const recogidoOrigen = document.getElementById("item-recogido-origen").classList.contains("completed");
+      const enRutaEntrega = document.getElementById("item-ruta-entrega").classList.contains("completed");
+      const entregado = document.getElementById("entrega-item").classList.contains("completed");
+
+      // Activar "Esperando Recolección" si al menos uno de los primeros 4 estados está completo
+      if (pedidoRegistrado || recibidoAlmacen || enPreparacion || listoDespacho) {
+        htEsperando.classList.add("active");
+      }
+
+      // Activar "Recogido en Origen" si ese estado está completo
+      if (recogidoOrigen) {
+        htEsperando.classList.add("active");
+        htRecogido.classList.add("active");
+      }
+
+      // Activar "En Ruta de Entrega" si ese estado está completo
+      if (enRutaEntrega) {
+        htEsperando.classList.add("active");
+        htRecogido.classList.add("active");
+        htRuta.classList.add("active");
+      }
+
+      // Activar "Entregado" si ese estado está completo
+      if (entregado) {
+        htEsperando.classList.add("active");
+        htRecogido.classList.add("active");
+        htRuta.classList.add("active");
+        htEntregado.classList.add("active");
+      }
+      
+      updateConnectorProgress();
+    }
+
+    // Función para actualizar el estado general final
+    function actualizarEstadoGeneral() {
+      const estadoElement = document.getElementById("estadoGeneral");
+      const fechaEntregaTimeline = document.getElementById("fechaEntregaTimeline").textContent;
+      const estadoEnvio = document.getElementById("estadoEnvio").textContent;
+
+      if (fechaEntregaTimeline && fechaEntregaTimeline !== "-") {
+        estadoElement.innerHTML = '<i class="fas fa-check-circle"></i>ENTREGADO';
+        estadoElement.className = "status-text entregado";
+        updateHorizontalTimeline("entregado");
+      } else if (estadoEnvio && estadoEnvio !== "-") {
+        const estadoLower = estadoEnvio.toLowerCase();
+
+        if (estadoLower.includes("entregado")) {
+          estadoElement.innerHTML = '<i class="fas fa-check-circle"></i>ENTREGADO';
+          estadoElement.className = "status-text entregado";
+          updateHorizontalTimeline("entregado");
+        } else {
+          estadoElement.innerHTML = '<i class="fas fa-clipboard-check"></i>PEDIDO REGISTRADO';
+          estadoElement.className = "status-text registrado";
+          updateHorizontalTimeline(estadoEnvio);
+        }
+      } else {
+        estadoElement.innerHTML = '<i class="fas fa-clock"></i>ESPERANDO ORDEN';
+        estadoElement.className = "status-text esperando";
+        updateHorizontalTimeline("esperando");
+      }
+    }
+
+    // Función para actualizar la línea de tiempo horizontal según el estado
+    function updateHorizontalTimeline(estado) {
+      const estadoLower = typeof estado === "string" ? estado.toLowerCase() : "";
+      const htEsperando = document.getElementById("ht-esperando");
+      const htRecogido = document.getElementById("ht-recogido");
+      const htRuta = document.getElementById("ht-ruta");
+      const htEntregado = document.getElementById("ht-entregado");
+
+      // Resetear todos los items
+      htEsperando.classList.remove("active");
+      htRecogido.classList.remove("active");
+      htRuta.classList.remove("active");
+      htEntregado.classList.remove("active");
+
+      if (!estado) return;
+
+      // Siempre activar el primer paso (registrado)
+      htEsperando.classList.add("active");
+
+      // Actualizar según el estado
+      if (
+        estadoLower.includes("recogido") ||
+        estadoLower.includes("origen") ||
+        estadoLower.includes("almacén") ||
+        estadoLower.includes("almacen")
+      ) {
+        htRecogido.classList.add("active");
+      }
+
+      if (
+        estadoLower.includes("tránsito") ||
+        estadoLower.includes("transito") ||
+        estadoLower.includes("proceso") ||
+        estadoLower.includes("ruta") ||
+        estadoLower.includes("despacho") ||
+        estadoLower.includes("camino")
+      ) {
+        htRecogido.classList.add("active");
+        htRuta.classList.add("active");
+      }
+
+      if (
+        estadoLower.includes("entregado") ||
+        estadoLower.includes("finalizado") ||
+        estadoLower.includes("completado")
+      ) {
+        htRecogido.classList.add("active");
+        htRuta.classList.add("active");
+        htEntregado.classList.add("active");
+      }
+    }
+  </script>
+</body>
+</html>
