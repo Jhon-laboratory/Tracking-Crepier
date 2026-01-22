@@ -17,7 +17,6 @@ $host = 'Jorgeserver.database.windows.net';
 $dbname = 'DPL';
 $username = 'Jmmc';
 $password = 'ChaosSoldier01';
-$puerto = 1433;
 $schema = 'externos';
 $table = 'guia_orden';
 
@@ -27,39 +26,76 @@ $ordenParaInfor = null;
 $guiaParaServientrega = null;
 $encontradoEnAzure = false;
 
-try {
-    // Conexión a la base de datos Azure
-    $conn = new PDO("sqlsrv:Server=$host,$puerto;Database=$dbname", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    // Consulta corregida - buscar por guía O por orden_infor
-    $stmt = $conn->prepare("SELECT * FROM [$schema].[$table] WHERE guia = :valor OR orden_infor = :valor2");
-    $stmt->bindParam(':valor', $valor);
-    $stmt->bindParam(':valor2', $valor);
-    $stmt->execute();
-
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if($row){
-        $encontradoEnAzure = true;
-        $datosAzure = $row;
+// Conexión a SQL Server usando sqlsrv
+function connectSQLServer() {
+    global $host, $dbname, $username, $password;
+    
+    try {
+        $connectionInfo = array(
+            "Database" => $dbname,
+            "UID" => $username,
+            "PWD" => $password,
+            "CharacterSet" => "UTF-8",
+            "ReturnDatesAsStrings" => true,
+            "MultipleActiveResultSets" => false,
+            "TrustServerCertificate" => true // Para Azure
+        );
         
-        // Determinar qué valor tenemos y qué necesitamos
-        $guia = $row['guia'];
-        $ordenInfor = $row['orden_infor'];
+        $conn = sqlsrv_connect($host, $connectionInfo);
         
-        // Si encontramos el registro, usar los valores de la base de datos
-        $ordenParaInfor = $ordenInfor;
-        $guiaParaServientrega = $guia;
-    } else {
-        // No encontrado en Azure - intentaremos consultar Infor directamente
-        $ordenParaInfor = $valor; // Usar el valor ingresado como posible orden
+        if ($conn === false) {
+            $errors = sqlsrv_errors();
+            $error_msg = isset($errors[0]['message']) ? $errors[0]['message'] : 'Error desconocido';
+            return ['success' => false, 'error' => 'Error SQL Server: ' . $error_msg];
+        }
+        
+        return ['success' => true, 'conn' => $conn];
+    } catch (Exception $e) {
+        return ['success' => false, 'error' => 'Excepción SQL Server: ' . $e->getMessage()];
     }
+}
 
-} catch(PDOException $e) {
+// Consultar datos en Azure SQL Server
+$conexion = connectSQLServer();
+if ($conexion['success']) {
+    $conn = $conexion['conn'];
+    
+    // Consulta corregida - buscar por guía O por orden_infor
+    $sql = "SELECT * FROM [$schema].[$table] WHERE guia = ? OR orden_infor = ?";
+    $params = array($valor, $valor);
+    
+    $stmt = sqlsrv_query($conn, $sql, $params);
+    
+    if ($stmt === false) {
+        $errors = sqlsrv_errors();
+        $datosAzure = ["error" => "Error en consulta: " . ($errors[0]['message'] ?? 'Error desconocido')];
+    } else {
+        $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+        
+        if($row){
+            $encontradoEnAzure = true;
+            $datosAzure = $row;
+            
+            // Determinar qué valor tenemos y qué necesitamos
+            $guia = $row['guia'];
+            $ordenInfor = $row['orden_infor'];
+            
+            // Si encontramos el registro, usar los valores de la base de datos
+            $ordenParaInfor = $ordenInfor;
+            $guiaParaServientrega = $guia;
+        } else {
+            // No encontrado en Azure - intentaremos consultar Infor directamente
+            $ordenParaInfor = $valor; // Usar el valor ingresado como posible orden
+        }
+        
+        sqlsrv_free_stmt($stmt);
+    }
+    
+    sqlsrv_close($conn);
+} else {
     // Error de conexión a Azure, pero aún podemos intentar con Infor
     $ordenParaInfor = $valor; // Usar el valor ingresado como posible orden
-    $datosAzure = ["error" => "Error de conexión a Azure: " . $e->getMessage()];
+    $datosAzure = ["error" => $conexion['error']];
 }
 
 // Array para almacenar todos los resultados
@@ -523,5 +559,5 @@ if (!$encontradoEnAlgunLado) {
 }
 
 // Devolver todos los resultados
-echo json_encode($resultadosCompletos);
+echo json_encode($resultadosCompletos, JSON_UNESCAPED_UNICODE);
 ?>
